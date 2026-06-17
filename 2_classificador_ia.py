@@ -67,6 +67,17 @@ class RateLimiter:
 rate_limiter = RateLimiter(GEMINI_RPM_LIMITE)
 
 
+class CotaDiariaExcedidaError(Exception):
+    """
+    Levantada quando a API retorna um erro de cota DIÁRIA (RPD) esgotada.
+    Diferente de 429/503 momentâneos, esperar alguns segundos não ajuda:
+    a cota só reseta à meia-noite no horário do Pacífico. Por isso esse
+    erro não deve entrar no fluxo de retry com backoff - o script deve
+    abortar imediatamente em vez de insistir em tentativas inúteis.
+    """
+    pass
+
+
 def criar_conexao():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
@@ -144,6 +155,14 @@ def classificar_lote(comentarios, max_tentativas=3):
             # esgotada vs 503 de instabilidade momentânea são causas
             # diferentes e merecem soluções diferentes).
             print(f"   🔍 Erro retornado pela API: {erro_str}")
+
+            # Cota DIÁRIA esgotada (ex: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier'):
+            # retry com backoff é inútil aqui, então abortamos imediatamente.
+            if "PerDay" in erro_str or "RequestsPerDay" in erro_str:
+                raise CotaDiariaExcedidaError(
+                    "Cota diária (RPD) do Gemini foi esgotada. "
+                    "Ela só reseta à meia-noite no horário do Pacífico (~4h da manhã em Brasília)."
+                )
 
             if "503" in erro_str or "UNAVAILABLE" in erro_str or "429" in erro_str:
                 tempo_espera = (tentativa + 1) * 5
@@ -226,6 +245,7 @@ if __name__ == "__main__":
     try:
         cursor = conn.cursor()
         numero_lote_global = 0
+        cota_diaria_excedida = False
 
         while True:
             pagina = buscar_pendentes(conn, TAMANHO_PAGINA)
@@ -244,6 +264,15 @@ if __name__ == "__main__":
                     dados_validos = validar_resultados(lote, resultados)
                     salvar_resultados(conn, cursor, dados_validos)
                     print(f"   ✅ {len(dados_validos)} de {len(lote)} comentários salvos.")
+                except CotaDiariaExcedidaError as e:
+                    conn.rollback()
+                    print(f"\n🛑 {e}")
+                    print("   Abortando a execução agora: continuar tentando só desperdiçaria tempo, "
+                          "já que a cota não volta antes da meia-noite (Pacífico). "
+                          "Os comentários deste e dos próximos lotes continuam pendentes e serão "
+                          "retomados automaticamente na próxima execução.")
+                    cota_diaria_excedida = True
+                    break
                 except Exception as e:
                     conn.rollback()
                     lotes_com_falha += 1
@@ -251,7 +280,12 @@ if __name__ == "__main__":
                     # Sem time.sleep(1) fixo aqui: o RateLimiter já garante o
                     # espaçamento correto entre requisições.
 
-        if lotes_com_falha:
+            if cota_diaria_excedida:
+                break
+
+        if cota_diaria_excedida:
+            pass  # mensagem de abortagem já foi exibida acima
+        elif lotes_com_falha:
             print(f"\n⚠️ FASE 2 CONCLUÍDA COM RESSALVAS: {lotes_com_falha} lote(s) falharam "
                   f"e permanecem pendentes para uma nova execução.")
         else:
