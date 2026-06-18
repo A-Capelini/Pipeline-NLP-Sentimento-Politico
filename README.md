@@ -18,10 +18,19 @@ O foco central deste projeto é demonstrar a construção de um pipeline **ELT (
 Civic-Data-Analytics/
 ├── 1_gerador_massa.py        # Fase 1: geração de dados sintéticos
 ├── 2_classificador_ia.py     # Fase 2: classificação via Google Gemini
-├── app.py                    # Fase 3: dashboard em Streamlit
-├── schema.sql                # Script de criação das tabelas no MySQL
-├── requirements.txt          # Dependências do projeto
+├── app.py                    # Fase 3: ponto de entrada do dashboard Streamlit
+├── pages/
+│   └── 1_Dashboard.py        # Painel de BI (gráficos, métricas, nuvem de palavras)
+├── utils/
+│   └── database.py           # Conexão com o MySQL e leitura da view de BI
+├── assets/
+│   └── style.css             # Estilização customizada do dashboard
+├── schema.sql                # Script de criação das tabelas e da view no MySQL
+├── environment.yml           # Ambiente conda (multiplataforma)
+├── requirements.txt          # Dependências via pip
 ├── .env.example               # Modelo de variáveis de ambiente
+├── scripts_legados/
+│   └── populador_banco.py    # Prototípo inicial, mantido apenas como referência histórica
 └── README.md
 ```
 
@@ -40,7 +49,7 @@ A aplicação é dividida em três camadas principais:
    - Paginação eficiente no MySQL via *anti-join* (`LEFT JOIN ... WHERE IS NULL`), processando grandes volumes de registros sem sobrecarregar a memória.
 
 3. **Painel de Business Intelligence (BI)**
-   - Dashboard interativo construído com Streamlit e Plotly.
+   - Dashboard interativo construído com Streamlit e Plotly, consumindo a view `vw_dashboard_sentimento` (criada pelo `schema.sql`) via `utils/database.py`.
    - Visualização de dados em tempo real, nuvem de palavras filtrada por *stopwords* e ranqueamento de propostas por engajamento.
 
 ## 🚀 Como Clonar e Executar
@@ -53,6 +62,15 @@ cd Civic-Data-Analytics
 ```
 
 ### 2. Criar o ambiente virtual
+
+**Opção A — usando `environment.yml` (recomendado, multiplataforma):**
+
+```bash
+conda env create -f environment.yml
+conda activate opinate_env
+```
+
+**Opção B — criando manualmente e instalando via pip:**
 
 ```bash
 conda create --name opinate_env python=3.10 -y
@@ -74,17 +92,19 @@ O arquivo `.env` deve conter:
 DB_HOST=localhost
 DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
-DB_NAME=seu_banco
+DB_NAME=dond
 GEMINI_API_KEY=sua_chave_api_do_google
 ```
 
 ### 4. Criar o schema do banco de dados
 
-Antes de rodar o pipeline, crie as tabelas necessárias no MySQL:
+O schema cria o banco `dond` automaticamente (`CREATE DATABASE IF NOT EXISTS dond`), então não é preciso criar um banco antes — apenas importe o arquivo direto no servidor MySQL:
 
 ```bash
-mysql -u seu_usuario -p seu_banco < schema.sql
+mysql -u seu_usuario -p < schema.sql
 ```
+
+Garanta que `DB_NAME=dond` no seu `.env`, já que esse é o nome fixo definido no script.
 
 ### 5. Executar o pipeline
 
@@ -110,11 +130,15 @@ streamlit run app.py
 
 > Adicione aqui prints do dashboard Streamlit e/ou do terminal durante a execução do pipeline para dar uma prévia visual do projeto a quem está avaliando o repositório.
 
+## 🗃️ Nota sobre código legado
+
+O arquivo `scripts_legados/populador_banco.py` foi o protótipo inicial do projeto: gerava um pequeno volume de dados manualmente e criava, dentro do próprio script, a tabela `comment_analysis` e a view `vw_dashboard_sentimento`. Essas duas estruturas já fazem parte oficialmente do `schema.sql`, e a geração de dados foi substituída por `1_gerador_massa.py` (mais escalável, com `executemany` e maior volume). O script foi mantido no repositório apenas como referência histórica do desenvolvimento — **não faz parte do fluxo de execução atual** e não precisa ser rodado.
+
 ## 👨‍💻 Autor
 
 **Anderson Capelini Andrade**
 
-- Estudante do 4º semestre de Data Science — Fatec Cotia 2026
+- Estudante do 4º semestre de Data Science — Fatec Cotia (Turma 2026)
 - LinkedIn: [linkedin.com/in/anderson-capelini](https://www.linkedin.com/in/anderson-capelini/)
 
 Projeto desenvolvido com foco em performance, escalabilidade e boas práticas de código.

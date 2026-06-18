@@ -1,6 +1,11 @@
--- dond_schema_mysql.sql
+-- schema.sql
 -- Versão para MySQL 8+
 -- Encoding: UTF8MB4
+--
+-- Schema consolidado do projeto Opinate / Civic Data Analytics.
+-- Inclui o schema relacional original (Database Opinate.sql) mais a
+-- tabela comment_analysis e a view vw_dashboard_sentimento, que antes
+-- só eram criadas pelo script legado populador_banco.py.
 
 CREATE DATABASE IF NOT EXISTS dond CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 USE dond;
@@ -199,6 +204,20 @@ CREATE TABLE IF NOT EXISTS comment (
   CONSTRAINT fk_comment_proposal FOREIGN KEY (proposal_id) REFERENCES proposal(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_comment_parent FOREIGN KEY (parent_comment_id) REFERENCES comment(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_comment_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------
+-- 11.1) Análise de Sentimento (NLP / Gemini)
+-- -----------------------
+-- Armazena a classificação de intenção política gerada pela Fase 2
+-- (2_classificador_ia.py) para cada comentário. Separada da tabela
+-- comment para manter a tabela bruta intacta e permitir reclassificação
+-- sem perder o texto original.
+CREATE TABLE IF NOT EXISTS comment_analysis (
+  comment_id CHAR(36) PRIMARY KEY,
+  classificacao_sentimento VARCHAR(50) NOT NULL,
+  analisado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_analysis_comment FOREIGN KEY (comment_id) REFERENCES comment(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------
@@ -438,3 +457,23 @@ CREATE INDEX idx_proposal_expires_at ON proposal(expires_at);
 CREATE INDEX idx_proposal_allow_anonymous ON proposal(allow_anonymous);
 CREATE INDEX idx_proposal_parliamentarian_proposal ON proposal_parliamentarian(proposal_id);
 CREATE INDEX idx_proposal_parliamentarian_parliamentarian ON proposal_parliamentarian(parliamentarian_id);
+
+-- -----------------------
+-- View de BI (usada por utils/database.py no dashboard Streamlit)
+-- -----------------------
+-- Junta comentário + proposta + classificação de sentimento em uma única
+-- linha, já no formato consumido por pages/1_Dashboard.py. Precisa ser
+-- recriada (DROP + CREATE) sempre que o schema rodar, para refletir
+-- qualquer alteração de estrutura nas tabelas de origem.
+DROP VIEW IF EXISTS vw_dashboard_sentimento;
+CREATE VIEW vw_dashboard_sentimento AS
+SELECT
+    c.id AS id_comentario,
+    p.title AS tema_proposta,
+    c.body AS texto_comentario,
+    ca.classificacao_sentimento,
+    c.score AS score_engajamento
+FROM comment c
+INNER JOIN proposal p ON c.proposal_id = p.id
+INNER JOIN comment_analysis ca ON c.id = ca.comment_id;
+
