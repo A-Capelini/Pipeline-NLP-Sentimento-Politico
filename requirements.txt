@@ -26,6 +26,7 @@ google-auth==2.55.0
 google-auth-httplib2==0.4.0
 google-genai==2.8.0
 googleapis-common-protos==1.75.0
+greenlet==3.5.2
 grpcio==1.81.1
 grpcio-status==1.71.2
 h11 @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_h11_1767729720/work
@@ -77,6 +78,7 @@ shiboken6==6.11.1
 six @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_six_1753199211/work
 smmap @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_smmap_1781021238/work
 sniffio==1.3.1
+SQLAlchemy==2.0.51
 starlette @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_starlette_1781447071/work
 streamlit @ file:///home/conda/feedstock_root/build_artifacts/streamlit_1780060568732/work
 tenacity @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_tenacity_1770510172/work

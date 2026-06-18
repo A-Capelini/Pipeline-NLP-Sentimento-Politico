@@ -9,6 +9,7 @@ dependencies:
   - pip
   - pip:
       - mysql-connector-python
+      - sqlalchemy
       - python-dotenv
       - google-genai
       - Faker
