@@ -1,10 +1,12 @@
 import os
 import uuid
 import random
+import json
 import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
 from faker import Faker
+from datetime import datetime, timedelta
 
 # ---------------------------------------------------------
 # SETUP E CONFIGURAÇÕES
@@ -12,275 +14,284 @@ from faker import Faker
 load_dotenv()
 fake = Faker('pt_BR')
 
+PARTIDOS = ["Partido Inovação (PI)", "Partido Conservador (PC)", "Partido Verde (PV)", "Partido Liberal (PL)"]
+CARGOS = ["Vereador", "Deputado Estadual", "Deputado Federal"]
+NIVEIS_POLITICOS = ["municipal", "estadual", "federal"]
+
 SEMENTES_PROPOSTAS = [
-    # Mobilidade
-    ("Implementação de Pedágio Urbano no Centro", "Criação de uma taxa de R$ 5,00 para veículos particulares circularem no centro em horário de pico.", "Mobilidade"),
-    ("Tarifa Zero aos Domingos", "Gratuidade no transporte público municipal todos os domingos e feriados.", "Mobilidade"),
-    ("Faixa Exclusiva para Motociclistas", "Criação de faixas azuis nas principais avenidas para reduzir acidentes de trânsito.", "Mobilidade"),
-    ("Integração Tarifária Regional", "Integração gratuita entre ônibus municipais e malha de trens metropolitanos na primeira hora.", "Mobilidade"),
-
-    # Segurança
-    ("Programa Bairro Iluminado", "Substituição de 100% das lâmpadas antigas por LED em ruas de alto índice de criminalidade.", "Segurança"),
-    ("Câmeras Corporais na Guarda Municipal", "Uso obrigatório de bodycams por todos os agentes da GCM durante patrulhamentos.", "Segurança"),
-    ("Drones para Monitoramento Integrado", "Uso de drones pela defesa civil e segurança pública em áreas de risco e praças.", "Segurança"),
-
-    # Saúde
-    ("Hospital Veterinário Público", "Construção de uma unidade de atendimento gratuito para animais domésticos.", "Saúde"),
-    ("Telemedicina nos Postos", "Implantação de totens de atendimento virtual e triagem remota nas UBSs.", "Saúde"),
-    ("Mutirão de Exames aos Finais de Semana", "Abertura das unidades de saúde aos sábados para reduzir filas de espera.", "Saúde"),
-
-    # Educação
-    ("Escola em Tempo Integral", "Ampliação da carga horária nas escolas da rede municipal com oficinas culturais.", "Educação"),
-    ("Vouchers para Creches Privadas", "Subsídio da prefeitura para zerar a fila de creches utilizando a rede privada.", "Educação"),
-    ("Kits de Robótica nas Escolas", "Distribuição de laboratórios móveis de programação para o ensino fundamental.", "Educação"),
-
-    # Meio Ambiente
-    ("Multa para Descarte Irregular", "Aumento de 500% na multa para descarte de entulho em vias públicas e terrenos baldios.", "Meio Ambiente"),
-    ("Frota de Ônibus Elétricos", "Substituição gradual de 30% da frota municipal por veículos emissão zero até 2028.", "Meio Ambiente"),
-    ("Criação do Parque Ecológico Municipal", "Desapropriação de áreas ociosas para a construção de um grande parque de preservação.", "Meio Ambiente"),
-
-    # Economia
-    ("Incentivo Fiscal para Startups", "Isenção de ISS por 5 anos para empresas de tecnologia e inovação que se instalarem no município.", "Economia"),
-    ("Feira Noturna Gastronômica", "Regulamentação de food trucks e feiras noturnas fixas nas principais praças da cidade.", "Economia"),
-    ("Programa Jovem Aprendiz Municipal", "Cotas em empresas parceiras da prefeitura para incentivar o primeiro emprego.", "Economia"),
-
-    # Infraestrutura
-    ("Revitalização do Calçadão Comercial", "Reforma completa, padronização e acessibilidade das calçadas do centro.", "Infraestrutura")
+    ("Implementação de Pedágio Urbano no Centro", "Criação de taxa para veículos circularem no centro.", "Mobilidade", ["transporte", "centro", "taxa"]),
+    ("Tarifa Zero aos Domingos", "Gratuidade no transporte público municipal.", "Mobilidade", ["ônibus", "social", "domingo"]),
+    ("Faixa Exclusiva para Motociclistas", "Criação de faixas azuis nas principais avenidas.", "Mobilidade", ["trânsito", "segurança", "motos"]),
+    ("Integração Tarifária Regional", "Integração gratuita entre ônibus e trens.", "Mobilidade", ["trens", "integração", "metropolitana"]),
+    ("Programa Bairro Iluminado", "Substituição de lâmpadas antigas por LED.", "Segurança", ["iluminação", "infraestrutura", "led"]),
+    ("Câmeras Corporais na Guarda", "Uso obrigatório de bodycams por todos os agentes.", "Segurança", ["gcm", "tecnologia", "transparência"]),
+    ("Drones para Monitoramento", "Uso de drones pela segurança pública.", "Segurança", ["inovação", "drones", "vigilância"]),
+    ("Hospital Veterinário Público", "Atendimento gratuito para animais domésticos.", "Saúde", ["pets", "saúde", "animal"]),
+    ("Telemedicina nos Postos", "Totens de atendimento virtual nas UBSs.", "Saúde", ["digital", "ubs", "inovação"]),
+    ("Mutirão de Exames aos Finais de Semana", "Abertura das unidades aos sábados.", "Saúde", ["filas", "exames", "agilidade"]),
+    ("Escola em Tempo Integral", "Ampliação da carga horária nas escolas.", "Educação", ["infância", "oficinas", "ensino"]),
+    ("Vouchers para Creches Privadas", "Subsídio da prefeitura para zerar fila de creches.", "Educação", ["creche", "subsídio", "família"]),
+    ("Kits de Robótica nas Escolas", "Laboratórios móveis para o ensino fundamental.", "Educação", ["tecnologia", "futuro", "robótica"]),
+    ("Multa para Descarte Irregular", "Aumento de 500% na multa para descarte de entulho.", "Meio Ambiente", ["limpeza", "punição", "ecologia"]),
+    ("Frota de Ônibus Elétricos", "Substituição de 30% da frota até 2028.", "Meio Ambiente", ["emissão zero", "elétricos", "clima"]),
+    ("Criação do Parque Ecológico", "Construção de um grande parque de preservação.", "Meio Ambiente", ["parque", "verde", "lazer"]),
+    ("Incentivo Fiscal para Startups", "Isenção de ISS por 5 anos para empresas de tech.", "Economia", ["startups", "impostos", "emprego"]),
+    ("Feira Noturna Gastronômica", "Regulamentação de food trucks em praças.", "Economia", ["cultura", "gastronomia", "renda"]),
+    ("Programa Jovem Aprendiz Municipal", "Cotas em empresas parceiras da prefeitura.", "Economia", ["juventude", "trabalho", "inclusão"]),
+    ("Revitalização do Calçadão Comercial", "Reforma e acessibilidade das calçadas do centro.", "Infraestrutura", ["obras", "acessibilidade", "comércio"])
 ]
 
 SEMENTES_COMENTARIOS = [
-    # Apoio Total
+    # Apoio
     "Apoio totalmente a ideia! Isso vai melhorar muito a nossa qualidade de vida.",
-    "Excelente! Vai ajudar demais a população, já passou da hora de termos medidas corajosas assim na cidade!",
+    "Excelente! Já passou da hora de termos medidas corajosas assim na cidade!",
     "Parabéns pela proposta. Tem o meu voto e da minha família.",
     "Perfeito, isso é exatamente o que a nossa região precisa há anos.",
-    "Projeto fantástico. Assino embaixo, podem aprovar sem mudar uma vírgula.",
-    "Essa é a melhor lei que já propuseram por aqui recentemente. Concordo 100%.",
-    "Gostei muito. Iniciativa brilhante que pensa no futuro do município.",
     "Completamente a favor. Vai trazer desenvolvimento e organizar a casa.",
-    "Ótima ideia! Precisamos de mais políticos pensando de forma inovadora assim.",
-    "Apoiadíssimo. Medida essencial para o progresso do nosso povo.",
-
-    # Apoio com Alteração
-    "Acho a iniciativa boa, mas o valor da taxa precisa ser revisto para não prejudicar os trabalhadores.",
-    "Excelente ideia, porém deveriam isentar moradores locais dessa cobrança ou regra.",
-    "Sou a favor do projeto, mas o prazo de implementação de 5 anos é muito longo. Precisamos disso para ontem.",
-    "A proposta é ótima, contudo acho que falta detalhar melhor de onde vai sair o orçamento.",
-    "Concordo com o objetivo principal, mas o artigo 3º precisa ser alterado para não punir os pequenos comerciantes.",
-    "Tem o meu apoio em tese, mas sugiro que incluam um comitê de fiscalização popular no texto da lei.",
+    # Alteração
+    "Acho a iniciativa boa, mas o valor precisa ser revisto para não prejudicar trabalhadores.",
+    "Excelente ideia, porém deveriam isentar moradores locais dessa regra.",
+    "Sou a favor do projeto, mas o prazo de implementação é muito longo.",
     "A intenção é muito válida. Só precisa ajustar a redação para não criar brechas legais.",
-    "Gostei da proposta, no entanto, acho que a área de abrangência deveria ser ampliada para os bairros afastados.",
-    "Iniciativa correta, mas com ressalvas. O financiamento não pode sair do fundo da educação.",
     "Apoio a pauta, mas requer emendas. Da forma como está escrita, pode prejudicar a classe média.",
-
-    # Dúvida / Neutro
+    # Neutro
     "Não tenho certeza se isso resolve o problema raiz, precisamos de mais estudos técnicos.",
-    "Até que faz sentido, mas quero ver se o dinheiro vai mesmo para melhorias públicas na prática.",
+    "Até que faz sentido, mas quero ver se o dinheiro vai mesmo para melhorias.",
     "Preciso ler o projeto de lei na íntegra para opinar. A descrição está muito vaga.",
-    "Será que a prefeitura tem estrutura para fiscalizar isso? Fica a dúvida.",
-    "Parece interessante no papel, mas a execução no Brasil costuma ser diferente.",
     "Não sou nem contra nem a favor ainda. Faltam dados estatísticos justificando a medida.",
-    "Gostaria de ver o impacto financeiro disso nos cofres públicos antes de me posicionar.",
-    "A ideia não é ruim, mas também não é a prioridade da cidade no momento atual.",
     "Pode ser que funcione, pode ser que não. Vamos acompanhar o debate na câmara.",
-    "Estou indeciso. Os argumentos de ambos os lados parecem fazer sentido.",
-
-    # Oposição com Remoção
+    # Oposição Parcial
     "A intenção do projeto é boa, mas o trecho que cria novos impostos deve ser removido.",
-    "Concordo que precisamos de segurança, mas sou contra a instalação dessas câmeras específicas, tirem essa parte.",
-    "O projeto em si tem méritos de organização, mas me oponho totalmente à cláusula de multas absurdas, isso tem que cair.",
-    "Apoio a ideia geral do texto, mas recuso veementemente o parágrafo que retira direitos adquiridos. Revoguem esse artigo.",
-    "Essa lei até pode seguir em frente, desde que removam a exigência de cobrança de pedágio ou taxa. Sem isso, eu aprovo.",
-    "A base da ideia é aceitável, contudo, a imposição de horários restritos é um erro. Apaguem essa restrição do projeto.",
-    "Sou a favor da modernização, mas me oponho à privatização do serviço descrita no anexo. Removendo isso, fica bom.",
-    "Entendo a necessidade, mas a parte punitiva do texto precisa ser totalmente excluída para ter meu apoio.",
-    "O conceito é legal, só que o artigo que transfere a responsabilidade para o cidadão é inaceitável. Cortem isso.",
-    "Concordo com a criação do programa, mas sou terminantemente contra a taxa de adesão obrigatória. Removam a taxa.",
-
-    # Rejeição Total
-    "Sou contra. Isso é um absurdo e só serve para tirar dinheiro do bolso do cidadão trabalhador.",
+    "O projeto em si tem méritos, mas me oponho totalmente à cláusula de multas, isso tem que cair.",
+    "Essa lei até pode seguir em frente, desde que removam a exigência de cobrança. Sem isso, eu aprovo.",
+    "Entendo a necessidade, mas a parte punitiva do texto precisa ser totalmente excluída.",
+    "Concordo com a criação do programa, mas sou terminantemente contra a taxa de adesão obrigatória.",
+    # Rejeição
+    "Sou contra. Isso é um absurdo e só serve para tirar dinheiro do cidadão.",
     "Isso vai destruir o comércio local. A lei deve ser rejeitada imediatamente e arquivada.",
     "Completamente inviável. Quem precisa trabalhar não tem outra opção. Voto não.",
     "Essa é a pior proposta que eu já vi. Um completo desrespeito com a população.",
-    "Rejeito totalmente. Isso é apenas cabide de emprego e burocracia desnecessária.",
-    "Sou 100% contra. Estão tentando empurrar guela abaixo algo que ninguém pediu.",
-    "Péssima ideia. Não resolve nada e só cria mais problemas. Arquivem isso.",
-    "Totalmente contrário. Medida elitista e desconectada da realidade das periferias.",
-    "Isso beira o ridículo. A prefeitura deveria focar no que importa em vez de inventar lei inútil.",
-    "Repúdio absoluto a esse projeto. Quem redigiu isso não anda de ônibus e não conhece a cidade."
+    "Totalmente contrário. Medida elitista e desconectada da realidade das periferias."
 ]
-
 
 def gerar_uuid():
     return str(uuid.uuid4())
 
-
 def criar_conexao():
     try:
         return mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+            host=os.getenv("DB_HOST"), user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"), database=os.getenv("DB_NAME")
         )
     except Error as e:
         print(f"❌ Erro ao conectar: {e}")
         return None
 
-
 # ---------------------------------------------------------
-# FUNÇÕES DE INGESTÃO MASSIVA
+# INGESTÃO GEOGRÁFICA E METADADOS
 # ---------------------------------------------------------
 def limpar_banco(cursor):
-    print("🧹 Limpando dados antigos...")
+    print("🧹 [1/8] Executando Truncate Cascata (limpeza profunda)...")
     cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
-    cursor.execute("TRUNCATE TABLE comment_vote;")
-    cursor.execute("TRUNCATE TABLE comment_analysis;")
-    cursor.execute("TRUNCATE TABLE comment;")
-    cursor.execute("TRUNCATE TABLE proposal;")
-    cursor.execute("TRUNCATE TABLE category;")
-    cursor.execute("TRUNCATE TABLE app_user;")
-    cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
-    # TRUNCATE em InnoDB já dá commit implícito, mas mantemos o commit
-    # explícito do chamador por clareza e por segurança em outros engines.
-
-
-def criar_base_geografica_e_categorias(cursor):
-    print("🌍 Injetando base geográfica e categorias diversificadas...")
-    cursor.execute("INSERT IGNORE INTO country (id, name) VALUES (1, 'Brasil')")
-    cursor.execute("INSERT IGNORE INTO region (id, name) VALUES (1, 'Sudeste')")
-    cursor.execute("INSERT IGNORE INTO state (id, name, acronym, region_id, country_id) VALUES (1, 'São Paulo', 'SP', 1, 1)")
-    cursor.execute("INSERT IGNORE INTO municipality (id, name, state_id) VALUES (1, 'São Paulo', 1)")
-
-    categorias_nomes = ["Mobilidade", "Segurança", "Saúde", "Educação", "Meio Ambiente", "Economia", "Infraestrutura"]
-    cat_ids = {nome: gerar_uuid() for nome in categorias_nomes}
-
-    dados_categorias = [
-        (cat_ids[nome], nome, f"Projetos e propostas para a área de {nome}")
-        for nome in categorias_nomes
+    tabelas = [
+        "comment_vote", "proposal_vote", "comment_analysis", "attachment", 
+        "vote", "parliamentary_activity", "proposal_share", "proposal_support", 
+        "proposal_parliamentarian", "comment", "proposal", "community", 
+        "parliamentarian", "category", "user_auth_provider", "app_user",
+        "municipality", "state", "region", "country"
     ]
-    cursor.executemany(
-        "INSERT INTO category (id, name, description) VALUES (%s, %s, %s)",
-        dados_categorias
-    )
-    return cat_ids
+    for tab in tabelas:
+        cursor.execute(f"TRUNCATE TABLE {tab};")
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
 
+def setup_geografia_categorias(cursor):
+    print("🌍 [2/8] Mapeando Brasil (Norte a Sul), Estados e Partidos...")
+    cursor.execute("INSERT INTO country (id, name) VALUES (1, 'Brasil')")
+    
+    # 5 Regiões do Brasil
+    regioes = {1: "Sudeste", 2: "Sul", 3: "Nordeste", 4: "Norte", 5: "Centro-Oeste"}
+    for r_id, nome in regioes.items():
+        cursor.execute("INSERT INTO region (id, name) VALUES (%s, %s)", (r_id, nome))
+        
+    # Estados representativos
+    estados = [
+        (1, 'São Paulo', 'SP', 1), (2, 'Rio de Janeiro', 'RJ', 1), 
+        (3, 'Paraná', 'PR', 2), (4, 'Bahia', 'BA', 3), 
+        (5, 'Ceará', 'CE', 3), (6, 'Amazonas', 'AM', 4), 
+        (7, 'Pará', 'PA', 4), (8, 'Goiás', 'GO', 5), 
+        (9, 'Distrito Federal', 'DF', 5)
+    ]
+    cursor.executemany("INSERT INTO state (id, name, acronym, region_id, country_id) VALUES (%s, %s, %s, %s, 1)", estados)
+    
+    # Municípios principais
+    municipios = [
+        (1, 'São Paulo', 1), (2, 'Campinas', 1), (3, 'Rio de Janeiro', 2), 
+        (4, 'Curitiba', 3), (5, 'Salvador', 4), (6, 'Fortaleza', 5), 
+        (7, 'Manaus', 6), (8, 'Belém', 7), (9, 'Goiânia', 8), (10, 'Brasília', 9)
+    ]
+    cursor.executemany("INSERT INTO municipality (id, name, state_id) VALUES (%s, %s, %s)", municipios)
+    
+    categorias = ["Mobilidade", "Segurança", "Saúde", "Educação", "Meio Ambiente", "Economia", "Infraestrutura"]
+    cat_ids = {nome: gerar_uuid() for nome in categorias}
+    cursor.executemany("INSERT INTO category (id, name, description) VALUES (%s, %s, %s)", 
+                       [(cat_ids[nome], nome, f"Área de {nome}") for nome in categorias])
+    
+    return cat_ids, list(regioes.keys()), [e[0] for e in estados], [m[0] for m in municipios]
 
-def gerar_usuarios_faker(cursor, quantidade=150):
-    print(f"👥 Gerando {quantidade} cidadãos sintéticos...")
-    usuarios_ids = []
-    dados_usuarios = []
+# ---------------------------------------------------------
+# SIMULADOR DEMOGRÁFICO E POLÍTICO
+# ---------------------------------------------------------
+def gerar_usuarios_e_politicos(cursor, regioes, estados, municipios, qtd_users, qtd_politicos):
+    print(f"👥 [3/8] Injetando {qtd_users} cidadãos e {qtd_politicos} parlamentares VIPs...")
+    users = []
+    
+    for _ in range(qtd_users):
+        u_id = gerar_uuid()
+        users.append((u_id, fake.unique.email(), fake.name(), fake.image_url(), fake.text(max_nb_chars=100), True))
+    cursor.executemany("INSERT INTO app_user (id, email, name, avatar_url, bio, verified) VALUES (%s, %s, %s, %s, %s, %s)", users)
+    
+    usuarios_ids = [u[0] for u in users]
+    politicos_ids = random.sample(usuarios_ids, qtd_politicos)
+    dados_politicos = []
+    
+    for p_id in politicos_ids:
+        dados_politicos.append((
+            gerar_uuid(), p_id, fake.name(), random.choice(NIVEIS_POLITICOS), 
+            random.choice(CARGOS), random.choice(PARTIDOS), random.choice(regioes), 
+            random.choice(estados), random.choice(municipios), 
+            datetime(2023, 1, 1), fake.url(), fake.unique.company_email()
+        ))
+        
+    cursor.executemany("""
+        INSERT INTO parliamentarian (id, user_id, name, political_level, position, party, 
+        region_id, state_id, municipality_id, term_start, official_page_url, contact_email) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, dados_politicos)
+    
+    parlamentares_uuid = [p[0] for p in dados_politicos]
+    return usuarios_ids, parlamentares_uuid
 
-    for _ in range(quantidade):
-        user_id = gerar_uuid()
-        nome = fake.name()
-        email = fake.unique.email()
-        usuarios_ids.append(user_id)
-        dados_usuarios.append((user_id, email, nome, True))
-
-    # Bulk insert: uma única ida ao banco para todos os usuários, em vez de
-    # uma chamada execute() por usuário.
-    cursor.executemany(
-        "INSERT INTO app_user (id, email, name, verified) VALUES (%s, %s, %s, %s)",
-        dados_usuarios
-    )
-    return usuarios_ids
-
-
-def gerar_propostas(cursor, cat_ids, usuarios_ids):
-    print("📜 Distribuindo 20 propostas legislativas complexas...")
+def gerar_propostas_complexas(cursor, cat_ids, usuarios_ids, municipios):
+    print("📜 [4/8] Publicando propostas com Tags JSON, Comunidades e Metas...")
+    
+    com_id = gerar_uuid()
+    cursor.execute("INSERT INTO community (id, user_id, name, description) VALUES (%s, %s, 'Fórum Nacional', 'Debates Cívicos')", (com_id, usuarios_ids[0]))
+    
     propostas_ids = []
-    dados_propostas = []
-
-    for titulo, desc, cat_nome in SEMENTES_PROPOSTAS:
+    dados_prop = []
+    
+    for i in range(50):
         prop_id = gerar_uuid()
-        user_id = random.choice(usuarios_ids)
-        cat_id = cat_ids[cat_nome]
         propostas_ids.append(prop_id)
-        dados_propostas.append((prop_id, titulo, desc, cat_id, user_id))
-
-    cursor.executemany(
-        """
-        INSERT INTO proposal (id, title, description, category_id, user_id, municipality_id, status)
-        VALUES (%s, %s, %s, %s, %s, 1, 'publicado')
-        """,
-        dados_propostas
-    )
+        
+        semente = SEMENTES_PROPOSTAS[i % len(SEMENTES_PROPOSTAS)]
+        titulo, desc, cat_nome, tags = semente
+        
+        if i >= len(SEMENTES_PROPOSTAS):
+            titulo = f"{titulo} ({fake.city()})"
+            desc = f"{desc} {fake.sentence()}"
+            
+        dados_prop.append((
+            prop_id, titulo, desc, cat_ids[cat_nome], random.choice(usuarios_ids), 
+            random.choice(municipios), com_id, 'publicado', 'público', 
+            json.dumps(tags), random.randint(500, 5000), random.randint(100, 10000)
+        ))
+        
+    cursor.executemany("""
+        INSERT INTO proposal (id, title, description, category_id, user_id, municipality_id, 
+        community_id, status, visibility, tags, goal_supporters, views_count) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, dados_prop)
+    
     return propostas_ids
 
+def gerar_engajamento_organico(cursor, propostas_ids, usuarios_ids, parlamentares_uuid):
+    print("🤝 [5/8] Simulando Atividades Parlamentares, Compartilhamentos e Apoios...")
+    
+    apoios, shares, activities, par_props = [], [], [], []
+    
+    for prop_id in propostas_ids:
+        autores = random.sample(parlamentares_uuid, random.randint(1, 5))
+        for aut in autores:
+            par_props.append((prop_id, aut))
+            
+        apoiadores = random.sample(usuarios_ids, random.randint(5, 30))
+        for u_id in apoiadores:
+            apoios.append((gerar_uuid(), prop_id, u_id))
+            if random.random() > 0.7:
+                shares.append((gerar_uuid(), prop_id, u_id, 'whatsapp'))
 
-def gerar_interacoes_massa(cursor, propostas_ids, usuarios_ids, qtd_comentarios=1000):
-    print(f"💬 Injetando {qtd_comentarios} comentários e explodindo a rede de votos...")
+    for p_id in parlamentares_uuid:
+        activities.append((gerar_uuid(), p_id, 'Discurso', fake.sentence(), datetime.now() - timedelta(days=random.randint(1, 100))))
 
+    cursor.executemany("INSERT INTO proposal_parliamentarian (proposal_id, parliamentarian_id) VALUES (%s, %s)", par_props)
+    cursor.executemany("INSERT INTO proposal_support (id, proposal_id, user_id) VALUES (%s, %s, %s)", apoios)
+    cursor.executemany("INSERT INTO proposal_share (id, proposal_id, shared_by, method) VALUES (%s, %s, %s, %s)", shares)
+    cursor.executemany("INSERT INTO parliamentary_activity (id, representative_id, activity_type, description, date_occurred) VALUES (%s, %s, %s, %s, %s)", activities)
+
+def injetar_comentarios(cursor, propostas_ids, usuarios_ids, qtd):
+    print(f"💬 [6/8] Disparando {qtd} comentários semânticos para o motor de NLP...")
     dados_comentarios = []
-    dados_votos = []
+    
+    for _ in range(qtd):
+        dados_comentarios.append((
+            gerar_uuid(), random.choice(propostas_ids), 
+            random.choice(usuarios_ids), random.choice(SEMENTES_COMENTARIOS)
+        ))
+        
+    cursor.executemany("INSERT INTO comment (id, proposal_id, user_id, body) VALUES (%s, %s, %s, %s)", dados_comentarios)
+    return [c[0] for c in dados_comentarios]
 
-    for _ in range(qtd_comentarios):
-        comment_id = gerar_uuid()
-        prop_id = random.choice(propostas_ids)
-        user_id = random.choice(usuarios_ids)
-        texto = random.choice(SEMENTES_COMENTARIOS)
-        dados_comentarios.append((comment_id, prop_id, user_id, texto))
+def gerar_votos_escala(cursor, propostas_ids, comentarios_ids, usuarios_ids):
+    print("🔥 [7/8] Explodindo rede de Upvotes/Downvotes (Milhares de registros)...")
+    votos_prop, votos_com = [], []
+    
+    for prop_id in propostas_ids:
+        votantes = random.sample(usuarios_ids, random.randint(10, 150))
+        for v in votantes:
+            votos_prop.append((v, prop_id, random.choice([1, 1, 1, -1]))) 
+            
+    comentarios_amostra = random.sample(comentarios_ids, min(1000, len(comentarios_ids)))
+    for com_id in comentarios_amostra:
+        votantes = random.sample(usuarios_ids, random.randint(0, 20))
+        for v in votantes:
+            votos_com.append((v, com_id, random.choice([1, 1, -1])))
 
-        # Sorteia os votantes já excluindo o autor do comentário, em vez de
-        # sortear e depois descartar quem coincidir com o autor — isso evita
-        # que o número final de votos fique menor do que o sorteado.
-        candidatos = [u for u in usuarios_ids if u != user_id]
-        num_votos = random.randint(0, min(15, len(candidatos)))
-        votantes = random.sample(candidatos, num_votos)
-
-        for votante_id in votantes:
-            voto_valor = random.choice([1, 1, 1, -1])  # Peso maior para upvotes
-            dados_votos.append((votante_id, comment_id, voto_valor))
-
-    # Bulk insert dos comentários (1 round-trip em vez de qtd_comentarios)
-    cursor.executemany(
-        "INSERT INTO comment (id, proposal_id, user_id, body) VALUES (%s, %s, %s, %s)",
-        dados_comentarios
-    )
-
-    # Bulk insert dos votos (1 round-trip em vez de milhares). Esse é o
-    # ganho de performance mais relevante do script, já que o volume de
-    # votos costuma ser várias vezes maior que o de comentários.
-    if dados_votos:
-        cursor.executemany(
-            "INSERT IGNORE INTO comment_vote (user_id, comment_id, vote_value) VALUES (%s, %s, %s)",
-            dados_votos
-        )
-
+    cursor.executemany("INSERT IGNORE INTO proposal_vote (user_id, proposal_id, vote_value) VALUES (%s, %s, %s)", votos_prop)
+    cursor.executemany("INSERT IGNORE INTO comment_vote (user_id, comment_id, vote_value) VALUES (%s, %s, %s)", votos_com)
 
 # ---------------------------------------------------------
-# EXECUÇÃO DA FASE 1
+# MOTOR PRINCIPAL
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    print("🚀 INICIANDO FASE 1: GERAÇÃO DE MASSA DE DADOS (ESCALA MÁXIMA)...")
+    print("🚀 INICIANDO SIMULADOR CÍVICO DE ALTA DENSIDADE...")
     conn = criar_conexao()
-    cursor = None
-
     if conn:
         try:
             cursor = conn.cursor()
-
             limpar_banco(cursor)
             conn.commit()
-
-            cat_ids = criar_base_geografica_e_categorias(cursor)
+            
+            cat_ids, regioes, estados, munics = setup_geografia_categorias(cursor)
+            
+            # Aqui definimos: 1000 usuários comuns e 40 políticos
+            usuarios_ids, parl_ids = gerar_usuarios_e_politicos(cursor, regioes, estados, munics, qtd_users=1000, qtd_politicos=40)
+            
+            prop_ids = gerar_propostas_complexas(cursor, cat_ids, usuarios_ids, munics)
+            gerar_engajamento_organico(cursor, prop_ids, usuarios_ids, parl_ids)
+            
+            # Aqui definimos: 3000 comentários a serem gerados
+            comentarios_ids = injetar_comentarios(cursor, prop_ids, usuarios_ids, qtd=3000)
+            
+            gerar_votos_escala(cursor, prop_ids, comentarios_ids, usuarios_ids)
+            
             conn.commit()
-
-            usuarios_ids = gerar_usuarios_faker(cursor, quantidade=150)
-            conn.commit()
-
-            propostas_ids = gerar_propostas(cursor, cat_ids, usuarios_ids)
-            conn.commit()
-
-            gerar_interacoes_massa(cursor, propostas_ids, usuarios_ids, qtd_comentarios=1000)
-            conn.commit()
-
-            print("\n✅ FASE 1 CONCLUÍDA! Banco populado com sucesso.")
+            print("✅ [8/8] FASE 1 CONCLUÍDA! Banco perfeitamente populado e pronto para BI e IA.")
+            print("\n💡 Próximo Passo: Execute 'python 2_classificador_ia.py' para classificar os 3.000 novos comentários!")
+            
         except Exception as e:
             conn.rollback()
-            print(f"\n❌ ERRO: {e}")
+            print(f"\n❌ ERRO CRÍTICO: {e}")
         finally:
-            if cursor is not None:
-                cursor.close()
+            cursor.close()
             conn.close()

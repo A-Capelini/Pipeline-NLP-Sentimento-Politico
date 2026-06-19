@@ -1,6 +1,5 @@
 # utils/database.py
 import os
-
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
@@ -9,20 +8,10 @@ from sqlalchemy.engine import URL
 
 load_dotenv()
 
-
 @st.cache_resource
 def obter_engine():
     """
     Cria a engine SQLAlchemy de conexão com o MySQL.
-
-    Usamos URL.create() em vez de montar a string de conexão manualmente
-    (ex: f"mysql+mysqlconnector://{user}:{senha}@{host}/{db}") porque essa
-    abordagem manual quebra silenciosamente se a senha tiver caracteres
-    especiais como @, : ou / — URL.create() escapa tudo corretamente.
-
-    Cacheada com @st.cache_resource (e não @st.cache_data) porque a engine
-    não é um objeto serializável: ela representa um pool de conexões vivo,
-    não um dado.
     """
     url = URL.create(
         drivername="mysql+mysqlconnector",
@@ -34,19 +23,15 @@ def obter_engine():
     return create_engine(url)
 
 
-@st.cache_data(ttl=600)  # Evita reconectar/reconsultar o banco a cada interação do usuário
+@st.cache_data(ttl=600)  
 def carregar_dados_analiticos():
     """
-    Extrai a view 'vw_dashboard_sentimento' inteira em um DataFrame Pandas,
-    pronto para o dashboard.
+    Extrai a view 'vw_dashboard_sentimento' inteira em um DataFrame Pandas.
     """
     try:
         engine = obter_engine()
         query = "SELECT * FROM vw_dashboard_sentimento"
 
-        # pd.read_sql com uma engine SQLAlchemy é o caminho oficialmente
-        # suportado pelo pandas - não gera mais o UserWarning que tínhamos
-        # com mysql.connector puro, então não precisamos suprimir nada.
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
@@ -54,4 +39,97 @@ def carregar_dados_analiticos():
 
     except Exception as e:
         st.error(f"Erro ao conectar ou extrair dados do banco: {e}")
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=600)
+def carregar_dados_partidarios():
+    """
+    Cruza comentários, propostas e parlamentares para extrair o sentimento
+    direcionado a cada partido político.
+    """
+    try:
+        engine = obter_engine()
+        # Query que faz o caminho completo: Comentário -> Proposta -> Relação Parlamentar -> Parlamentar
+        query = """
+            SELECT 
+                parl.party AS partido,
+                p.title AS tema_proposta,
+                ca.classificacao_sentimento,
+                COUNT(c.id) AS total_comentarios
+            FROM proposal p
+            INNER JOIN proposal_parliamentarian pp ON p.id = pp.proposal_id
+            INNER JOIN parliamentarian parl ON pp.parliamentarian_id = parl.id
+            INNER JOIN comment c ON p.id = c.proposal_id
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            GROUP BY parl.party, p.title, ca.classificacao_sentimento
+        """
+
+        with engine.connect() as conn:
+            df = pd.read_sql(query, conn)
+
+        return df
+
+    except Exception as e:
+        st.error(f"Erro ao extrair dados partidários: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=600)
+def carregar_dados_geopoliticos():
+    """
+    Cruza a localização geográfica da proposta (Região e Estado) 
+    com o partido político e o sentimento do comentário.
+    """
+    try:
+        engine = obter_engine()
+        query = """
+            SELECT 
+                parl.party AS partido,
+                r.name AS regiao,
+                s.name AS estado,
+                s.acronym AS uf,
+                ca.classificacao_sentimento,
+                COUNT(c.id) AS total_comentarios
+            FROM comment c
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            INNER JOIN proposal p ON c.proposal_id = p.id
+            INNER JOIN proposal_parliamentarian pp ON p.id = pp.proposal_id
+            INNER JOIN parliamentarian parl ON pp.parliamentarian_id = parl.id
+            INNER JOIN municipality m ON p.municipality_id = m.id
+            INNER JOIN state s ON m.state_id = s.id
+            INNER JOIN region r ON s.region_id = r.id
+            GROUP BY parl.party, r.name, s.name, s.acronym, ca.classificacao_sentimento
+        """
+
+        with engine.connect() as conn:
+            df = pd.read_sql(query, conn)
+
+        return df
+
+    except Exception as e:
+        st.error(f"Erro ao extrair dados geopolíticos: {e}")
+        return pd.DataFrame()
+    
+@st.cache_data(ttl=600)
+def carregar_dados_temporais():
+    """
+    Busca o volume de sentimentos por dia.
+    """
+    try:
+        engine = obter_engine()
+        # Nota: Ajuste 'created_at' se o seu campo de data tiver outro nome
+        query = """
+            SELECT 
+                DATE(c.created_at) as data,
+                ca.classificacao_sentimento,
+                COUNT(c.id) as total
+            FROM comment c
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            GROUP BY DATE(c.created_at), ca.classificacao_sentimento
+            ORDER BY data ASC
+        """
+        with engine.connect() as conn:
+            return pd.read_sql(query, conn)
+    except Exception as e:
+        st.error(f"Erro ao carregar dados temporais: {e}")
         return pd.DataFrame()
