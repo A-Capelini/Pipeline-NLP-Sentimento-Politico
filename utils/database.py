@@ -166,3 +166,69 @@ def carregar_dados_simulador():
     except Exception as e:
         st.error(f"Erro ao carregar dados do simulador: {e}")
         return pd.DataFrame()
+    
+@st.cache_data(ttl=600)
+def carregar_dados_cidadao():
+    """
+    Traz o histórico de comentários mascarando o ID do usuário (LGPD),
+    cruzando com a cidade da proposta para descobrir a 'Zona de Interesse'.
+    """
+    try:
+        engine = obter_engine()
+        query = """
+            SELECT 
+                UPPER(SUBSTRING(c.user_id, 1, 8)) AS cidadao_anonimo,
+                p.title AS tema_proposta,
+                m.name AS cidade,
+                s.acronym AS uf,
+                ca.classificacao_sentimento,
+                c.score AS engajamento_recebido,
+                c.body AS texto_comentario,
+                c.created_at AS data_comentario
+            FROM comment c
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            INNER JOIN proposal p ON c.proposal_id = p.id
+            INNER JOIN municipality m ON p.municipality_id = m.id
+            INNER JOIN state s ON m.state_id = s.id
+            ORDER BY c.created_at DESC
+        """
+        with engine.connect() as conn:
+            return pd.read_sql(query, conn)
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do cidadão: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=600)
+def carregar_dados_cidadao_avancado():
+    """
+    Traz o histórico completo, mascarando o ID do usuário (LGPD),
+    cruzando com a cidade, político (parliamentarian) e partido da proposta.
+    """
+    try:
+        engine = obter_engine()
+        query = """
+            SELECT 
+                UPPER(SUBSTRING(c.user_id, 1, 8)) AS cidadao_anonimo,
+                p.title AS tema_proposta,
+                m.name AS cidade,
+                s.acronym AS uf,
+                ca.classificacao_sentimento,
+                c.score AS engajamento_recebido,
+                c.body AS texto_comentario,
+                c.created_at AS data_comentario,
+                parl.name AS nome_politico,
+                parl.party AS sigla_partido
+            FROM comment c
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            INNER JOIN proposal p ON c.proposal_id = p.id
+            INNER JOIN proposal_parliamentarian pp ON p.id = pp.proposal_id
+            INNER JOIN parliamentarian parl ON pp.parliamentarian_id = parl.id
+            INNER JOIN municipality m ON p.municipality_id = m.id
+            INNER JOIN state s ON m.state_id = s.id
+            ORDER BY c.created_at DESC
+        """
+        with engine.connect() as conn:
+            return pd.read_sql(query, conn)
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do cidadão: {e}")
+        return pd.DataFrame()
