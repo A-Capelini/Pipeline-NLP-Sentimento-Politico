@@ -1,28 +1,63 @@
-/* assets/style.css */
+/* ============================================================
+   style.css — Opinate / Civic Data Analytics (Light/Clean Theme)
+   Paleta: Fundo Claro (#FAF9F6), Texto Escuro (#1A202C), Cards Brancos
+   ============================================================ */
 
-/* Reset básico e fundo global para manter o tema escuro */
+/* Reset básico e fundo global claro */
 .stApp {
-    background-color: #1E1E2E; /* Cor de fundo escura padrão de BI */
+    background-color: #FAF9F6;
+    color: #1A202C; /* Texto padrão cinza-escuro/chumbo */
 }
 
-/* Estilo para os Cards de Metricas */
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #F0EAD6; /* Bege/Creme suave */
+    border-right: 1px solid #E0D8C3;
+}
+
+/* Títulos: Removendo a serifa e aplicando cor institucional */
+h1, h2, h3, h4, h5, h6 {
+    color: #2C3E50 !important; /* Azul escuro institucional/sóbrio */
+    font-weight: 700;
+}
+
+/* Ocultar botões de toolbar dos gráficos Plotly para visual mais limpo */
+.st-emotion-cache-1rqij04 {
+    display: none;
+}
+
+/* ------------------------------------------------------------
+   Estilo para os Cards de Métricas Nativos do Streamlit
+   Transforma o "metric-container" para parecer um card moderno
+   ------------------------------------------------------------ */
 div[data-testid="metric-container"] {
-    background-color: #282A36;
-    border-radius: 10px;
-    padding: 15px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    background-color: #FFFFFF; /* Fundo branco puro */
+    border-radius: 12px; /* Cantos mais arredondados */
+    padding: 20px; /* Mais espaço interno para "respirar" */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* Sombra suave e elegante */
+    border: 1px solid rgba(0,0,0,0.05); /* Borda sutil */
     text-align: center;
-    border-bottom: 4px solid transparent; /* Preparando a base para a cor */
+    transition: transform 0.2s ease-in-out; /* Efeito hover opcional */
 }
 
-/* Ajustando o texto dentro dos cards */
+/* Efeito ao passar o mouse sobre o card (Hover) */
+div[data-testid="metric-container"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+/* Ajustando o Rótulo (Label) dentro dos cards */
 div[data-testid="metric-container"] > label {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #F8F8F2;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #718096 !important; /* Cinza médio para o rótulo */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
+/* Ajustando o Valor Principal (Value) dentro dos cards */
 div[data-testid="metric-container"] > div {
-    font-size: 2rem;
+    font-size: 2.2rem;
     font-weight: 800;
+    color: #1A202C !important; /* Cinza bem escuro para o número de destaque */
 }
