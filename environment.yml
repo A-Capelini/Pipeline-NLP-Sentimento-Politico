@@ -6,6 +6,7 @@ dependencies:
   - python=3.10
   - pandas
   - matplotlib
+  - networkx
   - pip
   - pip:
       - mysql-connector-python

@@ -133,3 +133,36 @@ def carregar_dados_temporais():
     except Exception as e:
         st.error(f"Erro ao carregar dados temporais: {e}")
         return pd.DataFrame()
+    
+@st.cache_data(ttl=600)
+def carregar_dados_simulador():
+    """
+    Cruza dados geográficos, políticos e de propostas para alimentar 
+    os filtros em cascata do simulador de cenários.
+    """
+    try:
+        engine = obter_engine()
+        query = """
+            SELECT 
+                r.name AS regiao,
+                s.name AS estado,
+                parl.party AS partido,
+                parl.name AS parlamentar,
+                p.title AS tema_proposta,
+                ca.classificacao_sentimento,
+                COUNT(c.id) AS total_comentarios
+            FROM comment c
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            INNER JOIN proposal p ON c.proposal_id = p.id
+            INNER JOIN proposal_parliamentarian pp ON p.id = pp.proposal_id
+            INNER JOIN parliamentarian parl ON pp.parliamentarian_id = parl.id
+            INNER JOIN municipality m ON p.municipality_id = m.id
+            INNER JOIN state s ON m.state_id = s.id
+            INNER JOIN region r ON s.region_id = r.id
+            GROUP BY r.name, s.name, parl.party, parl.name, p.title, ca.classificacao_sentimento
+        """
+        with engine.connect() as conn:
+            return pd.read_sql(query, conn)
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do simulador: {e}")
+        return pd.DataFrame()
