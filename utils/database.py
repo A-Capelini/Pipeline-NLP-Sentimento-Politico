@@ -46,14 +46,14 @@ def carregar_dados_analiticos():
 def carregar_dados_partidarios():
     """
     Cruza comentários, propostas e parlamentares para extrair o sentimento
-    direcionado a cada partido político.
+    direcionado a cada partido político e parlamentar.
     """
     try:
         engine = obter_engine()
-        # Query que faz o caminho completo: Comentário -> Proposta -> Relação Parlamentar -> Parlamentar
         query = """
             SELECT 
                 parl.party AS partido,
+                parl.name AS parlamentar,
                 p.title AS tema_proposta,
                 ca.classificacao_sentimento,
                 COUNT(c.id) AS total_comentarios
@@ -62,7 +62,7 @@ def carregar_dados_partidarios():
             INNER JOIN parliamentarian parl ON pp.parliamentarian_id = parl.id
             INNER JOIN comment c ON p.id = c.proposal_id
             INNER JOIN comment_analysis ca ON c.id = ca.comment_id
-            GROUP BY parl.party, p.title, ca.classificacao_sentimento
+            GROUP BY parl.party, parl.name, p.title, ca.classificacao_sentimento
         """
 
         with engine.connect() as conn:
@@ -78,13 +78,15 @@ def carregar_dados_partidarios():
 def carregar_dados_geopoliticos():
     """
     Cruza a localização geográfica da proposta (Região e Estado) 
-    com o partido político e o sentimento do comentário.
+    com o partido político, o parlamentar, a proposta e o sentimento do comentário.
     """
     try:
         engine = obter_engine()
         query = """
             SELECT 
                 parl.party AS partido,
+                parl.name AS parlamentar,
+                p.title AS tema_proposta,
                 r.name AS regiao,
                 s.name AS estado,
                 s.acronym AS uf,
@@ -98,7 +100,7 @@ def carregar_dados_geopoliticos():
             INNER JOIN municipality m ON p.municipality_id = m.id
             INNER JOIN state s ON m.state_id = s.id
             INNER JOIN region r ON s.region_id = r.id
-            GROUP BY parl.party, r.name, s.name, s.acronym, ca.classificacao_sentimento
+            GROUP BY parl.party, parl.name, p.title, r.name, s.name, s.acronym, ca.classificacao_sentimento
         """
 
         with engine.connect() as conn:
@@ -109,7 +111,7 @@ def carregar_dados_geopoliticos():
     except Exception as e:
         st.error(f"Erro ao extrair dados geopolíticos: {e}")
         return pd.DataFrame()
-    
+            
 @st.cache_data(ttl=600)
 def carregar_dados_temporais():
     """
@@ -231,4 +233,74 @@ def carregar_dados_cidadao_avancado():
             return pd.read_sql(query, conn)
     except Exception as e:
         st.error(f"Erro ao carregar dados do cidadão: {e}")
+        return pd.DataFrame()
+    
+@st.cache_data(ttl=600)
+def carregar_dados_tendencias():
+    """
+    Extrai a linha do tempo do sentimento cruzada com propostas e parlamentares
+    para alimentar o radar de tendências.
+    """
+    try:
+        engine = obter_engine()
+        
+        query = """
+            SELECT 
+                DATE(c.created_at) AS data,
+                p.title AS tema_proposta,
+                parl.party AS partido,
+                parl.name AS parlamentar,
+                ca.classificacao_sentimento,
+                COUNT(c.id) AS total_comentarios
+            FROM comment c
+            INNER JOIN proposal p ON c.proposal_id = p.id
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            INNER JOIN proposal_parliamentarian pp ON p.id = pp.proposal_id
+            INNER JOIN parliamentarian parl ON pp.parliamentarian_id = parl.id
+            GROUP BY DATE(c.created_at), p.title, parl.party, parl.name, ca.classificacao_sentimento
+            ORDER BY data ASC
+        """
+
+        with engine.connect() as conn:
+            df = pd.read_sql(query, conn)
+        
+        # Converte a coluna para o tipo datetime real do Pandas
+        df['data'] = pd.to_datetime(df['data'])
+        return df
+
+    except Exception as e:
+        st.error(f"Erro ao extrair dados de tendências: {e}")
+        return pd.DataFrame()
+    
+@st.cache_data(ttl=600)
+def carregar_dados_qualitativos():
+    """
+    Extrai os textos dos comentários cruzados com a hierarquia política
+    para alimentar a análise de N-Gramas e Redes.
+    """
+    try:
+        engine = obter_engine()
+        
+        query = """
+            SELECT 
+                c.body AS texto_comentario,
+                p.title AS tema_proposta,
+                parl.party AS partido,
+                parl.name AS parlamentar,
+                ca.classificacao_sentimento
+            FROM comment c
+            INNER JOIN proposal p ON c.proposal_id = p.id
+            INNER JOIN comment_analysis ca ON c.id = ca.comment_id
+            INNER JOIN proposal_parliamentarian pp ON p.id = pp.proposal_id
+            INNER JOIN parliamentarian parl ON pp.parliamentarian_id = parl.id
+            WHERE c.body IS NOT NULL AND c.body != ''
+        """
+
+        with engine.connect() as conn:
+            df = pd.read_sql(query, conn)
+            
+        return df
+
+    except Exception as e:
+        st.error(f"Erro ao extrair dados qualitativos: {e}")
         return pd.DataFrame()
