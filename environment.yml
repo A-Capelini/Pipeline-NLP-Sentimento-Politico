@@ -3,17 +3,26 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  # Core Python e Conda
   - python=3.10
-  - pandas
-  - matplotlib
-  - networkx
   - pip
+  
+  # Data Science & Core
+  - pandas
+  - sqlalchemy
+  - mysql-connector-python
+  
+  # Visualização e Dashboards
+  - streamlit
+  - plotly
+  - matplotlib
+  - wordcloud
+  - networkx
+  
+  # Utilitários
+  - python-dotenv
+  - faker
+  
+  # Dependências exclusivas via PIP (PyPI)
   - pip:
-      - mysql-connector-python
-      - sqlalchemy
-      - python-dotenv
       - google-genai
-      - Faker
-      - streamlit
-      - plotly
-      - wordcloud
