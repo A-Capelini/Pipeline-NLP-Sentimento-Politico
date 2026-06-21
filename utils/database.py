@@ -18,6 +18,7 @@ def obter_engine():
         username=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
         host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT", 3306), # ADICIONE ESTA LINHA
         database=os.getenv("DB_NAME"),
     )
     return create_engine(url)
