@@ -63,13 +63,14 @@ st.header("⚙️ Visão Geral do Sistema")
 st.markdown("""
 Este projeto é um portfólio avançado de Ciência de Dados que demonstra a construção de um pipeline analítico (ELT) de ponta a ponta. O objetivo é simular um ambiente cívico e capturar o sentimento da população em relação a propostas políticas.
 
-* **Geração e Simulação de Dados:** Criação de um ecossistema com milhares de interações, propostas legislativas e cidadãos com perfis variados.
-* **Inteligência Artificial (Google Gemini):** Utilização de Modelos de Linguagem Grande (LLMs) para Processamento de Linguagem Natural (NLP) em modo *Zero-Shot*, classificando o sentimento (Positivo, Negativo, Neutro) e a intenção de cada texto.
+* **Simulador Cívico de Alta Densidade:** Desenvolvimento de um motor de simulação automatizado em Python utilizando a biblioteca **`Faker`**. O script arquitetou um ecossistema relacional completo do zero, injetando 1.000 cidadãos, 40 parlamentares, e mapeando hierarquias demográficas.
+* **Engajamento Orgânico Sintético:** O motor simulou o ciclo de vida político gerando propostas complexas, milhares de votos, e o disparo de 3.000 comentários com intenções semânticas específicas (apoio, oposição, neutralidade).
+* **Inteligência Artificial (Google Gemini):** Utilização de Modelos de Linguagem Grande (LLMs) em modo *Zero-Shot* para consumir os 3.000 comentários sintéticos, classificando o sentimento e a intenção de cada cidadão de forma automatizada.
 * **Modelagem Relacional (Views de BI):** O aplicativo consome os dados diretamente através de *views* especializadas criadas no banco de dados, garantindo performance e integridade na camada de Business Intelligence.
 """)
 
 # ==========================================
-# 3. INFRAESTRUTURA CLOUD & CI/CD (NOVIDADE)
+# 3. INFRAESTRUTURA CLOUD & CI/CD
 # ==========================================
 st.header("☁️ Infraestrutura e Deploy")
 st.markdown("""
@@ -89,8 +90,8 @@ st.header("🛠️ Stack Tecnológico")
 col_t1, col_t2, col_t3 = st.columns(3)
 
 with col_t1:
-    st.markdown("**Engenharia de Dados & BD**")
-    st.markdown("`MySQL` `SQLAlchemy` `PyMySQL`")
+    st.markdown("**Engenharia & Simulação**")
+    st.markdown("`MySQL` `Python (Faker)` `SQLAlchemy`")
 
 with col_t2:
     st.markdown("**Inteligência Artificial & NLP**")
