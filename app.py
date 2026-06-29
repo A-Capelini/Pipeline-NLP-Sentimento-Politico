@@ -11,31 +11,28 @@ st.set_page_config(
 )
 
 # ==========================================
-# BARRA LATERAL (SIDEBAR) - CONTEXTO ACADÊMICO
+# BARRA LATERAL (SIDEBAR) - CONTEXTO ACADÊMICO E AUTORIA
 # ==========================================
 with st.sidebar:
+    st.markdown("### 👨‍💻 Desenvolvedor")
+    st.markdown("**Anderson Capelini Andrade**")
+    
+    # Botão elegante para o LinkedIn
+    st.markdown(
+        "[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/anderson-capelini)"
+    )
+    
+    st.divider()
+
     st.markdown("### 🎓 Contexto Acadêmico")
     st.markdown("**Instituição:** Fatec Cotia")
     st.markdown("**Curso:** Ciência de Dados")
+    st.markdown("**Semestre:** 4º Semestre")
     st.markdown("**Disciplina:** Projeto Integrado III")
     st.markdown("**Professor:** Rômulo Francisco de Souza Maia")
     
     st.divider()
     
-    # ---------------------------------------------------------
-    # ATENÇÃO: APAGAR ESTE BLOCO APÓS A APRESENTAÇÃO 
-    # PARA DEIXAR COMO PORTFÓLIO INDIVIDUAL
-    st.markdown("### 👥 Equipe do Projeto")
-    st.markdown("""
-    * Anderson Capelini Andrade
-    * Marcelo Ramos
-    * Moisés Germano Leite
-    * Victor Henrique
-    * Vitor Hugo Santos
-    """)
-    # ---------------------------------------------------------
-    
-    st.divider()
     st.info("ℹ️ Este painel consome dados em tempo real do banco de dados em nuvem.")
 
 # ==========================================
